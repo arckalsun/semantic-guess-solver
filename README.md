@@ -4,7 +4,7 @@
 > semantic similarity (BGE embedding + black-box scoring) and an offline
 > Round-1 cosine ranker. Pure numpy, NDJSON replay format, TDD-tested.
 
-[![tests](https://img.shields.io/badge/tests-27%20passed-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)]()
 [![python](https://img.shields.io/badge/python-≥3.10-blue)]()
 [![deps](https://img.shields.io/badge/runtime%20deps-numpy%20only-orange)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -18,10 +18,15 @@ A research-grade solver for the **GuessWord** daily puzzle on
 and returns a black-box similarity score for each guess (range ≈ 0.4–1.0).
 The answer is one 2-character Chinese word.
 
-This library implements **Round 1**: offline candidate ranking using a
-score-weighted embedding centroid + cosine similarity. It is intentionally
-*just the math + replay plumbing* — the browser probe (Round 2) and
-active-learning loop (Round 3) live elsewhere.
+This library ships **Round 1 (offline ranker) + Round 2 (online probe)**:
+
+| Round | Module(s) | Network? |
+| --- | --- | --- |
+| **Round 1** — pure-numpy cosine ranker | `sgs.replay`, `sgs.rank`, `sgs.round1` | no |
+| **Round 2** — oracle contract + batch probe + rate-limit | `sgs.oracle`, `sgs.ratelimit`, `sgs.probe` | yes (or fake) |
+
+The browser wire adapter (Playwright/Chromium CDP) and the active-learning
+loop live in **Round 3+** — see [Roadmap](#roadmap).
 
 ---
 
@@ -168,6 +173,19 @@ tests/
 - The 2-character answer constraint is *not* enforced by the math — feed
   in a corpus of any word length. Cases 1–5 happened to be 2-character
   answers; the API is length-agnostic.
+
+---
+
+## Roadmap
+
+| Round | Status | What lands |
+| --- | --- | --- |
+| **1. Offline ranker** | ✅ `v0.1.0` | numpy cosine + NDJSON replay + sha256 (27 tests) |
+| **2. Online probe** | ✅ `v0.2.0` | `Oracle` protocol + `TokenBucket` + batch probe + stop-on-correct (52 tests) |
+| **3. Browser wire** | planned | Playwright/Chromium CDP, persistent context, login-by-human-once, `fcntl.flock` against double-launch |
+| **4. Active learning** | planned | `U = α·pred + β·uncert + γ·diversity`, multi-round convergence |
+| **5. End-to-end** | planned | `dry-run` / `assisted` / `supervised` / `live` modes; gates: `--max-probes`, `--max-domain-switches`, `--stop-on-plateau` |
+| **6. Replay regression** | planned | NDJSON-driven offline regression with golden diff |
 
 ---
 

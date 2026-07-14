@@ -4,6 +4,33 @@ All notable changes to `semantic-guess-solver` are documented here. The
 project follows [semver](https://semver.org/) and the **Keep a Changelog**
 format.
 
+## [0.2.0] — 2026-07-14
+
+### Added — Round 2: online probe layer
+
+- `sgs.oracle` — `Oracle` runtime-checkable Protocol, `OracleResponse`
+  dataclass with the canonical wire envelope (score / doubleScore /
+  correct / rateLimited), and a script-driven `FakeOracle` for tests.
+- `sgs.ratelimit` — thread-safe `TokenBucket` (rate=0.8/s, burst=2) with
+  `take()` context manager; `make_default_bucket()` pinned to the
+  case-study-tested recipe.
+- `sgs.probe` — `probe_batch` and `probe_and_record` with stop-on-correct,
+  rate-limit accounting, and NDJSON **append** (so Round 1 → 2 → 3 share
+  one continuous replay log per shareId).
+- `sgs.already_correct` — server-lock helper: returns the set of words the
+  oracle has confirmed correct (used to build skip-lists for subsequent
+  batches; the case study showed the server returns `data:null` for
+  re-probes of locked words).
+- 25 new tests (`test_oracle`, `test_ratelimit`, `test_probe`); total
+  now **52 passed in 0.79s**.
+- README "Roadmap" section + module table.
+- `__version__` bumped to `0.2.0`; `__all__` re-exports the new symbols.
+
+### Validation
+
+All 52 tests pass with **zero** runtime dependencies beyond numpy (PEP 561
+marker preserved).
+
 ## [0.1.0] — 2026-07-14
 
 ### Added
