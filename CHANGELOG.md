@@ -4,6 +4,54 @@ All notable changes to `semantic-guess-solver` are documented here. The
 project follows [semver](https://semver.org/) and the **Keep a Changelog**
 format.
 
+## [0.6.0] — 2026-07-14
+
+### Added — Round 7 live wire integration (opt-in E2E)
+
+**Why this round.** After 6 rounds, every existing test still mocked
+`Oracle` (`FakeOracle`) or `PlaywrightScript`. Round 3's
+`PlaywrightOracle` shipped *believed-correct*, not *proven-correct*.
+v0.6.0 adds the missing E2E tier without disrupting the default
+test loop.
+
+* **New `tests/integration/` directory**:
+  * `test_oracle_live.py` — 4 opt-in tests that boot Chromium and
+    call xiaoce.fun:
+    * `test_first_probe_returns_known_score_band` — score in [0,1]
+      or None (rate-limit / lock)
+    * `test_repeated_probe_does_not_solve_unknown_word` — corpus
+      is curated losers, must never return `correct=True`
+    * `test_persistent_context_reuses_session` — soft-asserts
+      that the persistent Chromium context actually carries a
+      live session (not just "did not throw")
+    * `test_known_daily_answer_when_credentials_and_shareid_are_fresh`
+      — *doubly-gated* (integration + live_answer), operator-only
+  * `test_skip_guard.py` — 3 unit tests that pin down the opt-in
+    mechanism: even with no `.playwright-data/`, the helper
+    `_has_live_credentials()` must return False (and therefore
+    every live test must SKIP, never FAIL).
+* **Skip-not-fail contract**: If `.playwright-data/Default/Cookies`
+  is absent, every live test is skipped with an actionable message
+  pointing the user at the SKILL.md Round 3 login recipe. CI on a
+  clean machine stays green.
+* **Two new pytest markers** in `pyproject.toml`:
+  * `integration` — live wire tests
+  * `live_answer` — operator-only true E2E
+* **Zero-impact on default `pytest -q`**: total stays at
+  `146 passed, 4 skipped` in 2.14-2.25s (5/5 stable runs).
+
+### Migration
+
+Purely additive. Run the live tier explicitly with:
+
+    pytest -m integration tests/integration/
+    # operator-only:
+    pytest -m "integration and live_answer" tests/integration/
+
+### Test count
+
+`146 passed, 4 skipped` (was `143 passed`).
+
 ## [0.5.0] — 2026-07-14
 
 ### Added — `sgs.replay_diff` offline regression suite (Round 6)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "semantic-guess-solver"
-version = "0.5.0"
+version = "0.6.0"
 description = "Reverse-engineering xiaoce.fun GuessWord daily API; semantic similarity (BGE embedding + black-box scoring) + offline Round-1 ranking. Pure numpy, NDJSON replay format, TDD."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -47,3 +47,7 @@ sgs = ["py.typed"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+markers = [
+  "integration: live wire tests requiring xiaoce.fun session cookies (opt-in; run with `pytest -m integration tests/integration/`). Skipped, not failed, when no `.playwright-data` exists.",
+  "live_answer: doubly-gated E2E that probes today's real answer. Always skipped by default.",
+] # fmt: skip
