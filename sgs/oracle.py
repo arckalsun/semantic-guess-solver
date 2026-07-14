@@ -29,6 +29,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+__all__ = [
+    "Oracle",
+    "OracleResponse",
+    "FakeOracle",
+]  # NB: `already_correct` was removed — callers import it from ``probe``.
+
 
 @dataclass(frozen=True)
 class OracleResponse:
@@ -37,10 +43,15 @@ class OracleResponse:
     ``score`` is the only field used by the ranker; ``correct`` is the
     authoritative stop condition; ``double_score`` and ``rate_limited``
     are surfaced as warnings so the operator can see them in the NDJSON.
+
+    ``score`` is ``Optional`` because three legitimate outcomes have no
+    numeric score: server-side word lock (data:null), business error
+    (code != 0), and "rate-limited" (code == 1). Callers must treat
+    ``score is None`` as "skip this word in the ranker".
     """
 
     word: str
-    score: float
+    score: float | None
     correct: bool = False
     double_score: bool = False
     rate_limited: bool = False

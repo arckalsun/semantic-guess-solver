@@ -4,6 +4,65 @@ All notable changes to `semantic-guess-solver` are documented here. The
 project follows [semver](https://semver.org/) and the **Keep a Changelog**
 format.
 
+## [0.3.0] — 2026-07-14
+
+### Added — Round 3: real wire + single-instance lock
+
+- `sgs.flock` — `SingleInstanceLock` (fcntl.flock + banner w/ pid) and the
+  `single_instance` decorator. Prevents two solvers racing for the
+  same shareId in the same bandit's rate-limit quota. `AlreadyRunningError`
+  is the typed signal — note that **mp fork preserves class identity**, so
+  using `importlib.reload(sgs.flock)` after `from sgs.flock import
+  AlreadyRunningError` will silently desync the two references and break
+  `except` clauses inside `mp.Process` children (debugged during v0.3.0).
+- `sgs.wire`:
+  - `base.WireEndpoint.guess_url(word)` — produces the URL-encoded
+    `https://xiaoce.fun/api/v0/quiz/daily/GuessWord/guessV1?word=...`
+    with `safe=""` so CJK characters are properly encoded.
+  - `base.parse_response(raw, word)` — three-way classifier that
+    recognises (a) `data:null` + Chinese rate-limit message → marked
+    `rate_limited=True` (NOT a lock!), (b) `data:null` without rate-limit
+    message → `score=None` (lock), (c) normal envelope →
+    `score/doubleScore/correct`.
+  - `playwright.PlaywrightOracle(share_id, script=...)` — protocol-driven
+    so tests inject a `FakeScript` and never boot Chrome. Real script
+    builds headers (`fun-device: web`), fetches via `page.evaluate`,
+    calls `close()` only when the script is owned.
+- 32 new tests (`test_flock`, `test_wire_base`, `test_wire_playwright`).
+
+### Added — Round 4: active learning loop
+
+- `sgs.learn` — `Acquisition` Protocol + three strategies:
+  - `RandomAcquisition(seed)` — uniform random baseline.
+  - `GreedyAcquisition` — picks highest-known-score next; treats
+    unprobed candidates as 0.0 (cold-start) so warm-ups must inject
+    a `history=` prior when you want Greedy to dominate.
+  - `UncertaintyAcquisition(threshold)` — picks candidates closest to
+    a threshold (default 0.5, the bandit mid-band) for max info.
+- `active_solve(*, oracle, candidates, acquisition, budget, history=None)`
+  orchestrator. Optional `history` is the ranker's *prior* — the fitted
+  model's predicted scores for candidates we haven't yet probed in this
+  session. Affects ranking via the acquisition function but is **not**
+  counted as already-seen and **not** returned in the probe list.
+- 15 new tests (`test_learn`).
+
+### Validation
+
+All 103 tests pass 5× stable (2.0-2.2s wall per run).
+
+### Internal design notes
+
+- `OracleResponse.score` was `float` in Round 1; v0.3.0 promotes it to
+  `Optional[float]` so the wire layer can express "server-side lock
+  (data:null, no rate-limit msg)" without sentinel magic numbers.
+- `WireEndpoint.guess_url` was a `property` in an early draft;
+  switched to a method because callers don't have a `@cached_property`
+  boundary — `urllib.parse.quote(safe="")` must run *per-call* in case
+  the caller passes CJK that hasn't been encoded.
+- `active_solve` `history` semantics: the seed list is the *ranker's
+  prior*, not "words already probed". The `seen` set starts empty;
+  each round picks one fresh word via the acquisition function.
+
 ## [0.2.0] — 2026-07-14
 
 ### Added — Round 2: online probe layer
