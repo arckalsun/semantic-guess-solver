@@ -4,6 +4,45 @@ All notable changes to `semantic-guess-solver` are documented here. The
 project follows [semver](https://semver.org/) and the **Keep a Changelog**
 format.
 
+## [0.5.0] — 2026-07-14
+
+### Added — `sgs.replay_diff` offline regression suite (Round 6)
+
+**Why this round.** `sgs.solve` (Round 5) writes an NDJSON replay
+after every run. With ground truth in hand, the operator can now
+ask: *"did my new acquisition regress against last week's run?"*
+— **without re-running the network**.
+
+* **Library API**: `compare_runs(path_a, path_b, *, threshold=0.02)`
+  returns a frozen `ReplayDiffResult` with:
+  * `n_a`, `n_b`, `overlap` (rows in common)
+  * `peak_a`, `peak_b`, `peak_score_delta` (signed: `peak_b - peak_a`)
+  * `spearman` ρ, `kendall` τ-b (computed on the intersection of
+    *scored* rows, ordered by `path_a`'s probe sequence)
+  * `topk_intersection` at `k = min(n_a, n_b)`
+  * `probes_to_correct_a/b` (1-based probe index, `None` if never)
+  * `warning ∈ {"ok", "warn", "alarm"}`
+* **CLI**: `python -m sgs.replay_diff a.ndjson b.ndjson [--json]
+  [--threshold 0.02]`. Exit codes:
+  * `0` — warning=ok
+  * `1` — warning=warn (peak regressed beyond threshold)
+  * `2` — warning=alarm (no overlap; comparing unrelated sessions)
+  * `3` — configuration / IO error
+* **Strict NDJSON loader**: `load_replay(path)` raises
+  `ValueError` on missing `word` / `score`, `FileNotFoundError` on
+  missing file, `JSONDecodeError` on corrupt lines. **No silent
+  drop** of bad rows — a malformed replay is a hard schema error.
+* **stdlib-only** rank correlation: `_rank` with mid-rank tie-break,
+  pure-Python `spearman` and `kendall_tau`. No scipy / numpy.
+
+### Test count
+
+`143 passed` in 2.10-2.21s (Round 6 added 20; 5/5 stable runs).
+
+### Migration
+
+This is purely additive — no other module was modified.
+
 ## [0.4.0] — 2026-07-14
 
 ### Added
