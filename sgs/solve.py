@@ -109,16 +109,27 @@ def build_oracle(
     name: str,
     *,
     share_id: str | None = None,
+    base_url: str = "https://xiaoce.fun",
 ) -> Oracle:
     """Resolve an oracle plugin by name.
 
     `fake`           — returns a zero-score oracle, useful for dry-runs
                        where you only want to exercise the loop without
                        any network or script.
+
     `playwright`     — instantiates PlaywrightOracle. REQUIRES that the
                        user is already logged in via a persistent
                        Chromium context (see Round 3 docs). The import
                        happens here, NOT at module load.
+
+    `http`           — Round 8 visitor-curl oracle. Zero setup; uses
+                       :class:`sgs.wire.http.HttpOracle`. The
+                       ``xiaoce.fun`` /guessV1 endpoint accepts
+                       anonymous traffic when the request carries the
+                       trio of headers (see :mod:`sgs.wire.http`).
+
+    `base_url`       — override for tests; production callers should
+                       leave it alone.
     """
     if name == "fake":
         from sgs.oracle import FakeOracle  # local import — keeps oracle tests fast
@@ -133,8 +144,19 @@ def build_oracle(
                 "(the xiaoce.fun GuessWord session id)"
             )
         return PlaywrightOracle(share_id=share_id)
+    if name == "http":
+        # Round 8 — visitor-curl oracle. No browser, no cookies.
+        # The /guessV1 endpoint accepts anonymous traffic when the
+        # request carries the standard trio of headers (see sgs.wire.http).
+        from sgs.wire.http import HttpOracle
+        if not share_id:
+            raise ValueError(
+                "oracle 'http' requires --share-id <id> "
+                "(the xiaoce.fun GuessWord session id)"
+            )
+        return HttpOracle(share_id=share_id, base_url=base_url)
     raise ValueError(
-        f"unknown oracle: {name!r}; expected one of: fake, playwright"
+        f"unknown oracle: {name!r}; expected one of: fake, playwright, http"
     )
 
 
@@ -357,7 +379,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--oracle",
-        choices=["fake", "playwright"],
+        choices=["fake", "playwright", "http"],
         default="fake",
         help="Oracle backend (default: fake — no network)",
     )
@@ -452,9 +474,9 @@ def cli_main(argv: list[str] | None = None) -> int:
 
     # Cross-field validation: --oracle playwright requires --share-id.
     # argparse `choices=` does not catch this; we own it.
-    if args.oracle == "playwright" and not args.share_id:
+    if args.oracle in ("playwright", "http") and not args.share_id:
         print(
-            "ERROR: --oracle playwright requires --share-id <id>",
+            "ERROR: --oracle playwright|http requires --share-id <id>",
             file=sys.stderr,
         )
         return 3

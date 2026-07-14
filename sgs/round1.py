@@ -25,6 +25,13 @@ learning, you need at least one oracle response first.
 
 Why ``argparse`` and not ``typer`` / ``click``: we promised *0-dependency*
 for Round 1. ``argparse`` is stdlib and sufficient for a single CLI.
+
+v0.7.0 (2026-07-15): ``--predictor`` flag switches from centroid ranking
+to kernel-ridge-regression ranking. Use it after the centroid plateau
+stalls — typically after >100 probes with peak < 0.95. The predictor
+fits BGE 768-d → xiaoce doubleScore from the same observation history
+and ranks corpus words by predicted score. Solves case-11 in 9 probes
+where the centroid stalled at 0.82.
 """
 
 from __future__ import annotations
@@ -36,7 +43,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .rank import load_corpus, rank
+from .rank import load_corpus, rank, rank_by_predictor
 from .replay import read_replay
 
 
@@ -79,6 +86,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--include-correct",
         action="store_true",
         help="Include already-correct guesses in the ranking (for audit).",
+    )
+    p.add_argument(
+        "--predictor",
+        action="store_true",
+        help="Use Kernel Ridge Regression predictor instead of score-weighted centroid. "
+             "Solves embedding-space-misalignment plateaus (case-11). "
+             "Pair with --gamma and --alpha to override defaults (0.1, 0.1).",
+    )
+    p.add_argument(
+        "--gamma",
+        type=float,
+        default=0.1,
+        help="RBF kernel width for --predictor mode (default 0.1).",
+    )
+    p.add_argument(
+        "--alpha",
+        type=float,
+        default=0.1,
+        help="Ridge regularization for --predictor mode (default 0.1).",
     )
     return p.parse_args(argv)
 
@@ -129,13 +155,24 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     words, emb = load_corpus(args.candidates, args.embeddings)
-    ranked = rank(
-        obs,
-        words,
-        emb,
-        top_k=args.batch_size,
-        exclude_observed=not args.include_correct,
-    )
+    if args.predictor:
+        ranked = rank_by_predictor(
+            obs,
+            words,
+            emb,
+            top_k=args.batch_size,
+            exclude_observed=not args.include_correct,
+            gamma=args.gamma,
+            alpha=args.alpha,
+        )
+    else:
+        ranked = rank(
+            obs,
+            words,
+            emb,
+            top_k=args.batch_size,
+            exclude_observed=not args.include_correct,
+        )
     if not ranked:
         print(
             f"warning: every candidate was already probed "

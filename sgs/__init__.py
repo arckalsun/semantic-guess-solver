@@ -2,6 +2,9 @@
 
 Round 1 (offline): pure-numpy ranking + tamper-evident NDJSON replay.
 Round 2 (online): API contract adapter + batch probe + TokenBucket.
+v0.7.0 (2026-07-15): kernel-ridge-regression predictor (`sgs.krr`) for
+embedding-space-misalignment plateaus (case-11 broke the 0.82 plateau
+in 9 probes after 632 centroid-stalled brute-force probes).
 
 A 0-dependency (numpy only) library for ranking Chinese candidate words
 against the xiaoce.fun GuessWord daily oracle.
@@ -10,8 +13,12 @@ Submodules:
 
 * :mod:`sgs.replay` — NDJSON read/write + sha256 fingerprint.
 * :mod:`sgs.rank` — cosine-similarity ranking against a frozen embedding
-  matrix.
-* :mod:`sgs.round1` — CLI entry-point (use as ``python -m sgs.round1``).
+  matrix (centroid heuristic) **plus** kernel-ridge-regression ranking
+  (`rank_by_predictor`) for plateau cases.
+* :mod:`sgs.krr` — Kernel Ridge Regression predictor (RBF kernel,
+  closed-form solve). The brain behind ``rank_by_predictor``.
+* :mod:`sgs.round1` — CLI entry-point (use as ``python -m sgs.round1``);
+  pass ``--predictor`` to switch from centroid to KRR ranking.
 * :mod:`sgs.oracle` — ``Oracle`` protocol + ``OracleResponse`` + ``FakeOracle``.
 * :mod:`sgs.ratelimit` — ``TokenBucket`` (default rate=0.8/s, burst=2).
 * :mod:`sgs.probe` — ``probe_batch`` + ``probe_and_record``.
@@ -33,7 +40,7 @@ public API obvious and prevents accidental export drift.
 
 from __future__ import annotations
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [
     # Round 2 — online probe layer

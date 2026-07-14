@@ -18,6 +18,8 @@ data/*.json
 replay/*.ndjson
 !replay/.gitkeep
 !replay/example-*.ndjson
+# Case-study replay files live next to the corpus; never commit (user-private)
+data/*.ndjson
 
 # Editor / OS
 .vscode/

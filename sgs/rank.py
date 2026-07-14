@@ -182,4 +182,98 @@ def rank(
     return [(words[idx[i]], float(sub_sims[i])) for i in order]
 
 
-__all__ = ["load_corpus", "fit_centroid", "rank"]
+def rank_by_predictor(
+    observations: Sequence[tuple[str, float]],
+    words: Sequence[str],
+    emb: np.ndarray,
+    *,
+    top_k: int = 30,
+    exclude_observed: bool = True,
+    gamma: float = 0.1,
+    alpha: float = 0.1,
+) -> list[tuple[str, float]]:
+    """Score every corpus word using a Kernel Ridge Regression predictor.
+
+    This is the Round-4 predictor that sgs v0.6.0's ``rank`` was
+    *promising* but never delivered. Unlike ``rank``, which fits a
+    score-weighted centroid and computes cosine similarity, this
+    function learns a non-linear mapping from BGE-zh-base 768-d
+    embeddings → xiaoce doubleScore.
+
+    Use this when ``rank`` stalls at a plateau (peak < 0.95 across
+    >100 probes in a single semantic cluster). The plateau is the
+    signature of BGE/xiaoce embedding-space misalignment — the
+    predictor bypasses that by fitting a kernel function directly.
+
+    Parameters
+    ----------
+    observations
+        ``[(word, score)]`` pairs from the oracle.
+    words, emb
+        Candidate corpus and its L2-normalised ``(N, D)`` embeddings.
+    top_k
+        Number of results to return.
+    exclude_observed
+        If ``True`` (default), drop already-observed words.
+    gamma
+        RBF kernel width. Default 0.1 — chosen from case-11 5-fold CV.
+    alpha
+        Ridge regularization. Default 0.1.
+
+    Returns
+    -------
+    list[(word, predicted_score)] sorted descending by predicted score.
+    Predicted scores are in [0, 1].
+
+    See Also
+    --------
+    sgs.krr.KernelRidgePredictor — the underlying predictor class.
+    sgs.krr.fit_predictor — for callers that want to keep the predictor
+        alive across rounds (incremental learning — fit once, predict many).
+    """
+    if top_k <= 0:
+        raise ValueError(f"top_k must be positive, got {top_k}")
+
+    # Local import to avoid a hard dependency on sgs.krr for callers
+    # that only use the centroid-based rank.
+    from .krr import fit_predictor as _fit_krr
+
+    obs_words = {w for w, _ in observations}
+    word_to_idx = {w: i for i, w in enumerate(words)}
+
+    # Build observation matrix (skip observations whose word is not in corpus)
+    obs_X_idx: list[int] = []
+    obs_y: list[float] = []
+    for word, score in observations:
+        if word not in word_to_idx:
+            continue
+        s = float(score)
+        if s < 0.0 or s > 1.0 or s != s:  # NaN-safe
+            continue
+        obs_X_idx.append(word_to_idx[word])
+        obs_y.append(s)
+
+    if not obs_X_idx:
+        raise ValueError("rank_by_predictor: no usable observations")
+
+    X_obs = emb[obs_X_idx]
+    y_obs = np.asarray(obs_y, dtype=np.float32)
+
+    predictor = _fit_krr(X_obs, y_obs, gamma=gamma, alpha=alpha)
+
+    # Predict on every corpus word — then mask out observed words.
+    pred_scores = predictor(emb)
+    mask = np.ones(len(words), dtype=bool)
+    if exclude_observed:
+        for w in obs_words:
+            if w in word_to_idx:
+                mask[word_to_idx[w]] = False
+    idx = np.where(mask)[0]
+    if idx.size == 0:
+        return []
+    sub_scores = pred_scores[idx]
+    order = np.argsort(-sub_scores, kind="stable")[:top_k]
+    return [(words[idx[i]], float(sub_scores[i])) for i in order]
+
+
+__all__ = ["load_corpus", "fit_centroid", "rank", "rank_by_predictor"]
