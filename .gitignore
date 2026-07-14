@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Local data caches (user-supplied, never commit)
+data/*.npy
+data/*.npz
+data/*.parquet
+data/*.json
+!data/.gitkeep
+# User-recorded replay files are runtime-only; example-*.ndjson is committed.
+replay/*.ndjson
+!replay/.gitkeep
+!replay/example-*.ndjson
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

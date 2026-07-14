@@ -1,0 +1,5 @@
+{"word": "上海", "score": 0.722, "ts": "2026-07-14T08:01:14Z", "correct": false, "doubleScore": false}
+{"word": "浙江", "score": 0.741, "ts": "2026-07-14T08:01:22Z", "correct": false, "doubleScore": false}
+{"word": "杭州", "score": 0.812, "ts": "2026-07-14T08:01:31Z", "correct": false, "doubleScore": false}
+{"word": "余杭", "score": 0.876, "ts": "2026-07-14T08:01:39Z", "correct": false, "doubleScore": false}
+{"word": "萧山", "score": 0.989, "ts": "2026-07-14T08:01:48Z", "correct": true, "doubleScore": true}

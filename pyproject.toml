@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semantic-guess-solver"
+version = "0.1.0"
+description = "Reverse-engineering xiaoce.fun GuessWord daily API; semantic similarity (BGE embedding + black-box scoring) + offline Round-1 ranking. Pure numpy, NDJSON replay format, TDD."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "arckalsun", email = "noreply@example.com" },
+]
+keywords = ["xiaoce", "guess", "embedding", "BGE", "semantic-similarity", "game-solver"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Round 1 is intentionally 0-dependency (pure stdlib + numpy).
+dependencies = [
+  "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+]
+
+[project.urls]
+Homepage = "https://github.com/arckalsun/semantic-guess-solver"
+Issues = "https://github.com/arckalsun/semantic-guess-solver/issues"
+Changelog = "https://github.com/arckalsun/semantic-guess-solver/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+# Pure code + tests; no entry-point yet (Round 1 only exposes CLI modules).
+packages = ["sgs"]
+
+[tool.setuptools.package-data]
+sgs = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
