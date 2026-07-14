@@ -4,6 +4,55 @@ All notable changes to `semantic-guess-solver` are documented here. The
 project follows [semver](https://semver.org/) and the **Keep a Changelog**
 format.
 
+## [0.4.0] — 2026-07-14
+
+### Added
+
+- `sgs.solve` — end-to-end solver orchestrator and CLI.
+  - `solve_run(...)` library entry point that wires an `Oracle` (Round
+    2/3) to an `Acquisition` (Round 4) and a replay-NDJSON file.
+  - `cli_main(...)` exposes `python -m sgs.solve run --candidates X
+    --replay Y --oracle {fake|playwright} --acquisition {random|greedy|
+    uncertainty} --max-probes N --plateau-window W`.
+  - Plateau detection: stops early if the best observed score has not
+    improved for `plateau_window` consecutive probes (configurable,
+    default 5; pass `--plateau-window 0` to disable).
+  - Lazy `playwright` import — `import sgs.solve` does **not** pull in
+    the browser stack; `playwright.sync_api` only enters `sys.modules`
+    when `--oracle playwright` is actually requested AND the run
+    starts.
+  - Always calls `oracle.close()` (P0: no browser resource leak on
+    budget-exhaust or mid-loop exception).
+  - Distinct exit codes for operator triage:
+    - `0` = solved (`correct=True` reached)
+    - `2` = budget exhausted without `correct=True`
+    - `3` = configuration error (missing file, unknown strategy,
+      missing `--share-id` for `--oracle playwright`, etc.)
+  - `--json` flag for machine-readable output (for shell pipes / CI).
+- `tests/test_solve.py` — 20 tests covering the `SolveResult` contract,
+  replay-NDJSON append, plateau detection (with the precise 5-probe
+  trace), acquisition dispatch, CLI exit codes, lazy playwright import,
+  oracle lifecycle (`close()` on both correct and budget-exhaust paths),
+  and arg validation (`max_probes > 0`, non-empty candidates,
+  `plateau_window ≥ 0`).
+
+### Changed
+
+- Test count: `103 → 123`. Total runtime stays under 2.3 s × 5 stable
+  runs.
+- No public API breakage. `sgs.oracle.Oracle` / `OracleResponse`,
+  `sgs.learn.{Random,Greedy,Uncertainty}Acquisition`,
+  `sgs.wire.{WireEndpoint,PlaywrightOracle}` are unchanged.
+
+### Why this round is `0.x` not `1.0`
+
+The Round 5 CLI exercises the offline layer end-to-end (FakeOracle +
+greedy/uncertainty + replay-NDJSON append + plateau + exit codes),
+but **no live-wire integration test** is shipped yet. The next
+candidate is a `markers=integration` test suite that runs the CLI
+against `PlaywrightOracle` with a logged-in persistent context. Until
+that ships, `1.0` is premature.
+
 ## [0.3.0] — 2026-07-14
 
 ### Added — Round 3: real wire + single-instance lock

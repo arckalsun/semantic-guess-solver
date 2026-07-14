@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "semantic-guess-solver"
-version = "0.1.0"
+version = "0.4.0"
 description = "Reverse-engineering xiaoce.fun GuessWord daily API; semantic similarity (BGE embedding + black-box scoring) + offline Round-1 ranking. Pure numpy, NDJSON replay format, TDD."
 readme = "README.md"
 requires-python = ">=3.10"
