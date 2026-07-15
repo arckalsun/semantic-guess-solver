@@ -62,7 +62,8 @@ class HttpOracle:
     :func:`sgs.wire.base.parse_response`, and returns the result.
     """
 
-    share_id: str
+    share_id: str | None = None
+    date: str | None = None  # yyyyMMdd, v0.8.0 daily mode
     base_url: str = "https://xiaoce.fun"
     user_agent: str = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -74,7 +75,13 @@ class HttpOracle:
     def __post_init__(self) -> None:
         # Reuse WireEndpoint for URL construction so curl and
         # Playwright can never drift on query-param order.
-        self._endpoint = WireEndpoint(share_id=self.share_id, base_url=self.base_url)
+        # v0.8.0: pass both share_id and date so WireEndpoint's
+        # validation works (at least one must be set).
+        self._endpoint = WireEndpoint(
+            share_id=self.share_id,
+            date=self.date,
+            base_url=self.base_url,
+        )
         # NOTE: the Referer is hard-coded to the canonical xiaoce.fun
         # origin. Tests override `base_url` only to redirect the GET
         # to a stub server; they do NOT want to lie about the
@@ -131,13 +138,18 @@ class HttpOracle:
         Mirrors :meth:`sgs.wire.playwright.PlaywrightOracle._guess_url`
         (intentionally duplicated so the two wires can evolve
         independently).
+
+        v0.8.0: delegates URL construction to :class:`WireEndpoint`,
+        which supports both shareId (challenge share) and date (daily
+        challenge). Single source of truth prevents param drift.
         """
-        return (
-            f"{self.base_url}{GUESS_PATH}"
-            f"?word={urllib.parse.quote(word, safe='')}"
-            f"&shareId={urllib.parse.quote(self.share_id, safe='')}"
-            f"&skipBusinessErrorToast=true"
-        )
+        if self._endpoint is None:
+            # Lazy-build for backwards compat (HttpOracle users
+            # constructed without explicit WireEndpoint).
+            self._endpoint = WireEndpoint(
+                share_id=self.share_id, date=self.date, base_url=self.base_url
+            )
+        return self._endpoint.guess_url(word)
 
 
 __all__ = ["HttpError", "HttpOracle"]

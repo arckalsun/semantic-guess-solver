@@ -108,6 +108,7 @@ def test_endpoint_guess_url_contains_share_id_and_flag() -> None:
     assert "shareId=376634286041" in url
     assert "skipBusinessErrorToast=true" in url
     assert "word=%E5%BF%8D%E8%80%85" in url  # 忍者 URL-encoded
+    assert "date=" not in url  # v0.8.0: no date when only shareId
 
 
 def test_endpoint_guess_path_matches_canonical() -> None:
@@ -117,3 +118,37 @@ def test_endpoint_guess_path_matches_canonical() -> None:
 def test_default_headers_include_fun_device() -> None:
     assert "fun-device" in DEFAULT_HEADERS
     assert DEFAULT_HEADERS["fun-device"] == "web"
+
+
+# ----- v0.8.0 daily-mode (date-based, visitor-accessible) ----------------
+
+
+def test_endpoint_date_only_includes_date_param() -> None:
+    """date=YYYYMMDD lets unauthenticated visitors probe today's daily."""
+    e = WireEndpoint(date="20260715")
+    url = e.guess_url("南宁")
+    assert "date=20260715" in url
+    assert "word=%E5%8D%97%E5%AE%81" in url  # 南宁 URL-encoded
+    assert "shareId=" not in url
+
+
+def test_endpoint_with_both_shareid_and_date_includes_both() -> None:
+    """shareId wins as the primary key when both are set (login user
+    playing their own share + date context for fallback resolution)."""
+    e = WireEndpoint(share_id="123", date="20260715")
+    url = e.guess_url("南宁")
+    assert "shareId=123" in url
+    assert "date=20260715" in url
+
+
+def test_endpoint_requires_at_least_one_of_shareid_date() -> None:
+    with pytest.raises(ValueError, match="exactly one of share_id / date"):
+        WireEndpoint()
+
+
+def test_endpoint_accepts_positional_shareid() -> None:
+    """Backwards compat: positional share_id still works."""
+    e = WireEndpoint("12345")
+    assert e.share_id == "12345"
+    assert e.date is None
+    assert "shareId=12345" in e.guess_url("学校")

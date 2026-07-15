@@ -73,10 +73,27 @@ DEFAULT_HEADERS = {
 
 @dataclass(frozen=True)
 class WireEndpoint:
-    """The two knobs every wire implementation needs."""
+    """The three knobs every wire implementation needs.
 
-    share_id: str
+    v0.8.0 (2026-07-15): added ``date`` knob for visitor-accessible daily
+    challenges. ``guessV1?date=YYYYMMDD`` lets unauthenticated visitors
+    probe today's daily challenge directly — bypasses the login-walled
+    ``share/create`` endpoint. When ``date`` is set, ``shareId`` is
+    omitted from the URL (mutually exclusive).
+    """
+
+    share_id: str | None = None
+    date: str | None = None  # yyyyMMdd
     base_url: str = "https://xiaoce.fun"
+
+    def __post_init__(self) -> None:
+        # Frozen dataclass -> use object.__setattr__
+        if self.share_id is None and self.date is None:
+            raise ValueError(
+                "WireEndpoint requires exactly one of share_id / date "
+                "(or both). shareId-based challenges need login, "
+                "date-based daily challenges are visitor-accessible."
+            )
 
     def guess_url(self, word: str) -> str:
         """Return the full URL to call, with ``word`` URL-encoded.
@@ -84,13 +101,22 @@ class WireEndpoint:
         Mirrors :meth:`sgs.wire.playwright.PlaywrightOracle._guess_url` —
         the only difference is the template is a method call here so we
         don't need a placeholder format string.
+
+        v0.8.0: supports both shareId (per-challenge share) and date
+        (platform daily challenge). When both are set, shareId wins
+        (logged-in user playing their own share takes precedence).
         """
-        return (
-            f"{self.base_url}{GUESS_PATH}"
-            f"?word={urllib.parse.quote(word, safe='')}"
-            f"&shareId={urllib.parse.quote(self.share_id, safe='')}"
-            f"&skipBusinessErrorToast=true"
-        )
+        params: list[str] = [
+            f"word={urllib.parse.quote(word, safe='')}",
+            f"skipBusinessErrorToast=true",
+        ]
+        if self.share_id is not None:
+            params.append(
+                f"shareId={urllib.parse.quote(self.share_id, safe='')}"
+            )
+        if self.date is not None:
+            params.append(f"date={self.date}")
+        return f"{self.base_url}{GUESS_PATH}?" + "&".join(params)
 
 
 @dataclass(frozen=True)

@@ -5,6 +5,12 @@ Round 2 (online): API contract adapter + batch probe + TokenBucket.
 v0.7.0 (2026-07-15): kernel-ridge-regression predictor (`sgs.krr`) for
 embedding-space-misalignment plateaus (case-11 broke the 0.82 plateau
 in 9 probes after 632 centroid-stalled brute-force probes).
+v0.8.0 (2026-07-15): visitor-accessible daily mode (`sgs.daily_solve`).
+The platform daily GuessWord challenge is reachable via
+`/guessV1?date=YYYYMMDD` — no shareId, no login. Bypasses the
+share/create login wall. case-daily-2026-07-15 (南宁) solved
+cleanly via the centroid alone in 150 probes; KRR kicks in past
+100 obs or peak≥0.85.
 
 A 0-dependency (numpy only) library for ranking Chinese candidate words
 against the xiaoce.fun GuessWord daily oracle.
@@ -40,7 +46,7 @@ public API obvious and prevents accidental export drift.
 
 from __future__ import annotations
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __all__ = [
     # Round 2 — online probe layer
